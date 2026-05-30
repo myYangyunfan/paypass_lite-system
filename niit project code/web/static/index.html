@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="pageTitle">paypass_lite (交易轻)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<!-- App Shell -->
+<div class="app">
+
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-icon">A</span>
+      <span class="brand-text" data-i18n="brandName">paypass_lite</span>
+    </div>
+    <ul class="nav-menu">
+      <li class="nav-item active" data-panel="create-account">
+        <span class="nav-icon">+</span>
+        <span data-i18n="navCreateAccount">Create Account</span>
+      </li>
+      <li class="nav-item" data-panel="deposit">
+        <span class="nav-icon">↓</span>
+        <span data-i18n="navDeposit">Deposit</span>
+      </li>
+      <li class="nav-item" data-panel="withdraw">
+        <span class="nav-icon">↑</span>
+        <span data-i18n="navWithdraw">Withdraw</span>
+      </li>
+      <li class="nav-item" data-panel="transfer">
+        <span class="nav-icon">⇄</span>
+        <span data-i18n="navTransfer">Transfer</span>
+      </li>
+      <li class="nav-item" data-panel="search">
+        <span class="nav-icon">⌕</span>
+        <span data-i18n="navSearch">Search</span>
+      </li>
+      <li class="nav-item" data-panel="ledger">
+        <span class="nav-icon">☰</span>
+        <span data-i18n="navViewLedger">View Ledger</span>
+      </li>
+      <li class="nav-item" data-panel="undo">
+        <span class="nav-icon">↩</span>
+        <span data-i18n="navUndo">Undo</span>
+      </li>
+      <li class="nav-item" data-panel="delete-account">
+        <span class="nav-icon">✕</span>
+        <span data-i18n="navDelete">Delete</span>
+      </li>
+    </ul>
+    <div class="sidebar-footer">
+      <button id="btn-lang" class="btn-lang-toggle">中文</button>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main">
+
+    <!-- Panel: Create Account -->
+    <section class="panel active" id="panel-create-account">
+      <div class="panel-card">
+        <h2 class="panel-title" data-i18n="titleCreateAccount">Create Account</h2>
+        <form id="form-create-account" class="form">
+          <div class="form-row">
+            <label><span data-i18n="labelAccountNumber">Account Number</span> <span class="req">*</span></label>
+            <input type="text" name="account_number" data-i18n-placeholder="placeholderAccNum" placeholder="e.g. ACC001" required>
+          </div>
+          <div class="form-row">
+            <label><span data-i18n="labelUserName">User Name</span> <span class="req">*</span></label>
+            <input type="text" name="user_name" data-i18n-placeholder="placeholderUserName" placeholder="e.g. Alice" required>
+          </div>
+          <div class="form-row">
+            <label><span data-i18n="labelPhoneNumber">Phone Number</span></label>
+            <input type="text" name="phone_number" data-i18n-placeholder="placeholderPhone" placeholder="e.g. 13800001111">
+          </div>
+          <button type="submit" class="btn btn-primary" data-i18n="btnCreateAccount">Create Account</button>
+        </form>
+      </div>
+      <div class="result-area" id="result-create-account"></div>
+    </section>
+
+    <!-- Panel: Deposit -->
+    <section class="panel" id="panel-deposit">
+      <div class="panel-card">
+        <h2 class="panel-title" data-i18n="titleDeposit">Deposit Money</h2>
+        <form id="form-deposit" class="form">
+          <div class="form-row">
+            <label><span data-i18n="labelAccountNumber">Account Number</span> <span class="req">*</span></label>
+            <input type="text" name="account_number" data-i18n-placeholder="placeholderAccNum" placeholder="e.g. ACC001" required>
+          </div>
+          <div class="form-row">
+            <label><span data-i18n="labelAmount">Amount</span> <span class="req">*</span></label>
+            <input type="number" name="amount" data-i18n-placeholder="placeholderAmount" placeholder="0.00" step="0.01" min="0.01" required>
+          </div>
+          <button type="submit" class="btn btn-primary" data-i18n="btnDeposit">Deposit</button>
+        </form>
+      </div>
+      <div class="result-area" id="result-deposit"></div>
+    </section>
+
+    <!-- Panel: Withdraw -->
+    <section class="panel" id="panel-withdraw">
+      <div class="panel-card">
+        <h2 class="panel-title" data-i18n="titleWithdraw">Withdraw Money</h2>
+        <form id="form-withdraw" class="form">
+          <div class="form-row">
+            <label><span data-i18n="labelAccountNumber">Account Number</span> <span class="req">*</span></label>
+            <input type="text" name="account_number" data-i18n-placeholder="placeholderAccNum" placeholder="e.g. ACC001" required>
+          </div>
+          <div class="form-row">
+            <label><span data-i18n="labelAmount">Amount</span> <span class="req">*</span></label>
+            <input type="number" name="amount" data-i18n-placeholder="placeholderAmount" placeholder="0.00" step="0.01" min="0.01" required>
+          </div>
+          <button type="submit" class="btn btn-primary" data-i18n="btnWithdraw">Withdraw</button>
+        </form>
+      </div>
+      <div class="result-area" id="result-withdraw"></div>
+    </section>
+
+    <!-- Panel: Transfer -->
+    <section class="panel" id="panel-transfer">
+      <div class="panel-card">
+        <h2 class="panel-title" data-i18n="titleTransfer">Transfer Money</h2>
+        <form id="form-transfer" class="form">
+          <div class="form-row">
+            <label><span data-i18n="labelFromAccount">From Account</span> <span class="req">*</span></label>
+            <input type="text" name="from" data-i18n-placeholder="placeholderFrom" placeholder="Source account" required>
+          </div>
+          <div class="form-row">
+            <label><span data-i18n="labelToAccount">To Account</span> <span class="req">*</span></label>
+            <input type="text" name="to" data-i18n-placeholder="placeholderTo" placeholder="Destination account" required>
+          </div>
+          <div class="form-row">
+            <label><span data-i18n="labelAmount">Amount</span> <span class="req">*</span></label>
+            <input type="number" name="amount" data-i18n-placeholder="placeholderAmount" placeholder="0.00" step="0.01" min="0.01" required>
+          </div>
+          <button type="submit" class="btn btn-primary" data-i18n="btnTransfer">Transfer</button>
+        </form>
+      </div>
+      <div class="result-area" id="result-transfer"></div>
+    </section>
+
+    <!-- Panel: Search -->
+    <section class="panel" id="panel-search">
+      <div class="panel-card">
+        <h2 class="panel-title" data-i18n="titleSearch">Search Account</h2>
+        <form id="form-search" class="form">
+          <div class="form-row">
+            <label><span data-i18n="labelAccountNumber">Account Number</span> <span class="req">*</span></label>
+            <input type="text" name="account_number" data-i18n-placeholder="placeholderAccNum" placeholder="e.g. ACC001" required>
+          </div>
+          <button type="submit" class="btn btn-primary" data-i18n="btnSearch">Search</button>
+        </form>
+      </div>
+      <div class="result-area" id="result-search"></div>
+    </section>
+
+    <!-- Panel: View Ledger -->
+    <section class="panel" id="panel-ledger">
+      <div class="panel-card">
+        <h2 class="panel-title" data-i18n="titleViewLedger">View Ledger</h2>
+        <form id="form-ledger" class="form">
+          <div class="form-row">
+            <label><span data-i18n="labelAccountNumber">Account Number</span> <span class="req">*</span></label>
+            <input type="text" name="account_number" data-i18n-placeholder="placeholderAccNum" placeholder="e.g. ACC001" required>
+          </div>
+          <button type="submit" class="btn btn-primary" data-i18n="btnViewLedger">View Ledger</button>
+        </form>
+      </div>
+      <div class="result-area" id="result-ledger"></div>
+    </section>
+
+    <!-- Panel: Undo -->
+    <section class="panel" id="panel-undo">
+      <div class="panel-card">
+        <h2 class="panel-title" data-i18n="titleUndo">Undo Last Transaction</h2>
+        <p class="panel-desc" data-i18n="descUndo">This will reverse the most recent transaction (deposit, withdrawal, or transfer).</p>
+        <button id="btn-undo" class="btn btn-warning" data-i18n="btnUndo">Undo Last Transaction</button>
+      </div>
+      <div class="result-area" id="result-undo"></div>
+    </section>
+
+    <!-- Panel: Delete -->
+    <section class="panel" id="panel-delete-account">
+      <div class="panel-card">
+        <h2 class="panel-title" data-i18n="titleDelete">Delete Account</h2>
+        <form id="form-delete-account" class="form">
+          <div class="form-row">
+            <label><span data-i18n="labelAccountNumber">Account Number</span> <span class="req">*</span></label>
+            <input type="text" name="account_number" data-i18n-placeholder="placeholderAccNum" placeholder="e.g. ACC001" required>
+          </div>
+          <button type="submit" class="btn btn-danger" data-i18n="btnDelete">Delete Account</button>
+        </form>
+      </div>
+      <div class="result-area" id="result-delete-account"></div>
+    </section>
+
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
