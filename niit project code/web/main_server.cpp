@@ -357,8 +357,7 @@ Json ledgerJson(const Account& a){
 
 // 程序入口 - 初始化账本系统并启动HTTP服务器
 int main(){
-    LedgerSystem sys;  // 账本系统核心实例
-    SimpleHttpServer srv(8080);  // 监听8080端口的HTTP服务器
+    LedgerSystem sys;SimpleHttpServer srv(8080);
     srv.setStaticDir("./web/static");
 
     // 创建账户接口: POST /api/accounts
