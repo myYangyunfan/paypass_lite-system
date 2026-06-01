@@ -1,7 +1,7 @@
 // ============================================================
-// 支付系统轻量版 (PayPass Lite) - HTTP API 服务器
-// 功能: 提供RESTful API接口，支持账户管理、转账交易等操作
-// 平台: Windows (Winsock2) / Linux (POSIX sockets)
+// PayPass Lite - HTTP API Server
+// Features: RESTful API for account management, transfers, etc.
+// Platform: Windows (Winsock2) / Linux (POSIX sockets)
 // ============================================================
 
 #include "ledger_system.h"
@@ -18,14 +18,14 @@
 #include <cmath>
 #include <limits>
 
-// Windows平台网络库初始化
+// Windows platform network library initialization
 #ifdef _WIN32
   #include <winsock2.h>
   #include <ws2tcpip.h>
   #pragma comment(lib, "ws2_32.lib")
   typedef int socklen_t;
 #else
-  // Linux/Unix平台网络库
+  // Linux/Unix platform network library
   #include <sys/socket.h>
   #include <netinet/in.h>
   #include <unistd.h>
@@ -36,8 +36,8 @@
 
 enum class JsonType { NUL, BOOL, NUMBER, STRING, ARRAY, OBJECT };
 
-// JSON解析器类 - 支持JSON序列化与反序列化
-// 用于HTTP请求体的解析和响应体的构建
+// JSON parser class - supports serialization and deserialization
+// Used for parsing HTTP request bodies and building response bodies
 class Json {
 public:
     JsonType type;
@@ -145,13 +145,13 @@ Json Json::parseNum(const std::string& in, size_t& p){
 }
 
 // HTTP server
-// HTTP请求结构体 - 存储解析后的请求信息
+// HTTP request structure - stores parsed request information
 struct HttpRequest {
     std::string method, path, body;
     std::map<std::string,std::string> headers, params;
 };
 
-// HTTP响应结构体 - 用于构建响应内容
+// HTTP response structure - used for building response content
 struct HttpResponse {
     int status=200; std::string body;
     std::map<std::string,std::string> headers;
@@ -159,13 +159,13 @@ struct HttpResponse {
     void set_header(const std::string& k, const std::string& v){headers[k]=v;}
 };
 
-// 路由处理函数类型别名
+// Route handler function type alias
 using Handler = std::function<void(const HttpRequest&, HttpResponse&)>;
 
-// 路由结构体 - 关联HTTP方法、路径前缀和处理函数
+// Route structure - associates HTTP method, path prefix, and handler function
 struct Route { std::string method, prefix; Handler handler; };
 
-// 简易HTTP服务器类 - 封装socket监听和请求处理
+// Simple HTTP server class - encapsulates socket listening and request handling
 class SimpleHttpServer {
     #ifdef _WIN32
     SOCKET fd_;
@@ -326,23 +326,23 @@ public:
     }
 };
 
-// 从URL路径中提取账户ID的辅助函数
+// Helper function to extract account ID from URL path
 std::string extractId(const std::string& path, const std::string& prefix){
     std::string r=path.substr(prefix.size());size_t s=r.find('/');
     return (s!=std::string::npos)?r.substr(0,s):r;
 }
 
-// 错误响应JSON构建函数
+// Error response JSON builder function
 Json errJson(int s, const std::string& m){Json j;j["success"]=false;j["error"]=m;j["code"]=(double)s;return j;}
 
-// 成功响应JSON构建函数
+// Success response JSON builder function
 Json okJson(const std::string& m){Json j;j["success"]=true;j["message"]=m;return j;}
 
-// 账户信息转JSON函数
+// Account info to JSON converter function
 Json accJson(const Account& a){Json j;j["account_number"]=a.getAccountNumber();
 j["user_name"]=a.getUserName();j["phone_number"]=a.getPhoneNumber();j["balance"]=a.getBalance();return j;}
 
-// 账本信息转JSON函数 (包含完整交易历史)
+// Ledger info to JSON function (includes full transaction history)
 Json ledgerJson(const Account& a){
     Json l;l["account_number"]=a.getAccountNumber();l["user_name"]=a.getUserName();l["balance"]=a.getBalance();
     Json txs;txs.type=JsonType::ARRAY;const Transaction* t=a.getLastTransaction();
@@ -355,12 +355,12 @@ Json ledgerJson(const Account& a){
     l["transactions"]=txs;l["transaction_count"]=(double)txs.arr_val.size();return l;
 }
 
-// 程序入口 - 初始化账本系统并启动HTTP服务器
+// Program entry point - initialize ledger system and start HTTP server
 int main(){
     LedgerSystem sys;SimpleHttpServer srv(8080);
     srv.setStaticDir("./web/static");
 
-    // 创建账户接口: POST /api/accounts
+    // Create account endpoint: POST /api/accounts
     srv.post("/api/accounts",[&](const HttpRequest& req,HttpResponse& resp){
         try{Json b=Json::parse(req.body);
         if(!b.contains("account_number")||!b.contains("user_name")){resp.status=400;
@@ -376,7 +376,7 @@ int main(){
         }catch(...){resp.status=400;resp.set_content(errJson(400,"Invalid JSON").dump(),"application/json");}
     });
 
-    // 存款/取款接口: POST /api/accounts/{id}/deposit 或 /withdraw
+    // Deposit/Withdraw endpoint: POST /api/accounts/{id}/deposit or /withdraw
     srv.post("/api/accounts/",[&](const HttpRequest& req,HttpResponse& resp){
         std::string id=extractId(req.path,"/api/accounts/");
         if(req.path.find("/deposit")!=std::string::npos){
@@ -401,7 +401,7 @@ int main(){
         }
     });
 
-    // 转账接口: POST /api/transfer
+    // Transfer endpoint: POST /api/transfer
     srv.post("/api/transfer",[&](const HttpRequest& req,HttpResponse& resp){
         try{Json b=Json::parse(req.body);
         if(!b.contains("from")||!b.contains("to")||!b.contains("amount")){resp.status=400;
@@ -415,7 +415,7 @@ int main(){
         }catch(...){resp.status=400;resp.set_content(errJson(400,"Invalid JSON").dump(),"application/json");}
     });
 
-    // 查询账户/账本接口: GET /api/accounts/{id} 或 /api/accounts/{id}/ledger
+    // Query account/ledger endpoint: GET /api/accounts/{id} or /api/accounts/{id}/ledger
     srv.get("/api/accounts/",[&](const HttpRequest& req,HttpResponse& resp){
         std::string id=extractId(req.path,"/api/accounts/");
         size_t sl=std::string("/api/accounts/").size()+id.size();
@@ -428,13 +428,13 @@ int main(){
         }
     });
 
-    // 撤销操作接口: POST /api/undo
+    // Undo operation endpoint: POST /api/undo
     srv.post("/api/undo",[&](const HttpRequest&,HttpResponse& resp){
         if(!sys.undo()){resp.status=422;resp.set_content(errJson(422,"Nothing to undo").dump(),"application/json");return;}
         resp.set_content(okJson("Undone").dump(),"application/json");
     });
 
-    // 删除账户接口: DELETE /api/accounts/{id}
+    // Delete account endpoint: DELETE /api/accounts/{id}
     srv.del("/api/accounts/",[&](const HttpRequest& req,HttpResponse& resp){
         std::string id=extractId(req.path,"/api/accounts/");
         size_t sl=std::string("/api/accounts/").size()+id.size();
