@@ -3,42 +3,42 @@
 
 #include <string>
 
-class Account;  // 前向声明
+class Account;  // Forward declaration
 
-// 哈希桶节点（单链表，用于链地址法解决冲突）
+// Hash bucket node (singly linked list for chaining to resolve collisions)
 struct HashNode {
     std::string key;      // account_number
-    Account*    account;  // 指向账户对象
+    Account*    account;  // Pointer to account object
     HashNode*   next;
 
     HashNode(const std::string& k, Account* a)
         : key(k), account(a), next(nullptr) {}
 };
 
-// 哈希表 — 链地址法，静态容量 101
+// Hash table - chaining method, static capacity 101
 class HashTable {
 private:
-    static const int TABLE_SIZE = 101;  // 素数，减少冲突
+    static const int TABLE_SIZE = 101;  // Prime number to reduce collisions
     HashNode* buckets_[TABLE_SIZE];
 
-    // 哈希函数 (djb2 变体)
+    // Hash function (djb2 variant)
     int hash(const std::string& key) const;
 
 public:
     HashTable();
     ~HashTable();
 
-    // —— 禁止拷贝 ——
+    // —— No copying ——
     HashTable(const HashTable&) = delete;
     HashTable& operator=(const HashTable&) = delete;
 
-    // 插入账户（key 为 account_number），key 重复返回 false
+    // Insert account (key is account_number), returns false if key already exists
     bool insert(const std::string& key, Account* account);
 
-    // 查询，不存在返回 nullptr
+    // Search, returns nullptr if not found
     Account* search(const std::string& key) const;
 
-    // 删除（释放 Account 对象），不存在返回 false
+    // Remove (frees Account object), returns false if not found
     bool remove(const std::string& key);
 };
 

@@ -3,66 +3,66 @@
 
 #include <string>
 
-// 交易类型
+// Transaction type
 enum class TxnType {
-    DEPOSIT,    // 存款
-    WITHDRAW,   // 取款
-    TRANSFER    // 转账
+    DEPOSIT,    // Deposit
+    WITHDRAW,   // Withdraw
+    TRANSFER    // Transfer
 };
 
-// 将枚举转为可读字符串
+// Convert enum to readable string
 const char* txnTypeToStr(TxnType type);
 
-// 交易节点 — 双向链表的基本单元
+// Transaction node - basic unit of doubly linked list
 struct Transaction {
-    int    txn_id;          // 交易编号，全局自增
-    std::string from_account;  // 转出方（DEPOSIT/WITHDRAW 时为空）
-    std::string to_account;    // 转入方（TRANSFER 时有值）
-    double amount;             // 金额
-    TxnType type;              // 交易类型
-    std::string timestamp;     // 时间戳（简化用字符串）
+    int    txn_id;          // Transaction ID, global increment
+    std::string from_account;  // Sender account (empty for DEPOSIT/WITHDRAW)
+    std::string to_account;    // Receiver account (has value for TRANSFER)
+    double amount;             // Amount
+    TxnType type;              // Transaction type
+    std::string timestamp;     // Timestamp (simplified as string)
 
-    Transaction* prev;         // 前驱指针
-    Transaction* next;         // 后继指针
+    Transaction* prev;         // Previous pointer
+    Transaction* next;         // Next pointer
 
     Transaction(int id, const std::string& from, const std::string& to,
                 double amt, TxnType tp, const std::string& ts);
 };
 
-// 双向链表 — 带头尾哨兵节点
+// Doubly linked list - with head and tail sentinel nodes
 class DoublyLinkedList {
 private:
-    Transaction* head_sentinel_;  // 头哨兵（不存有效数据）
-    Transaction* tail_sentinel_;  // 尾哨兵（不存有效数据）
-    int count_;                   // 有效节点数
+    Transaction* head_sentinel_;  // Head sentinel (no valid data)
+    Transaction* tail_sentinel_;  // Tail sentinel (no valid data)
+    int count_;                   // Number of valid nodes
 
 public:
     DoublyLinkedList();
     ~DoublyLinkedList();
 
-    // —— 禁止拷贝 ——
+    // —— No copying ——
     DoublyLinkedList(const DoublyLinkedList&) = delete;
     DoublyLinkedList& operator=(const DoublyLinkedList&) = delete;
 
-    // 在尾部追加交易（O(1)）
+    // Append transaction at tail (O(1))
     void pushBack(Transaction* txn);
 
-    // 按 txn_id 删除指定节点，返回是否成功
+    // Remove node by txn_id, returns success status
     bool removeById(int txn_id);
 
-    // 返回最后一个有效节点（用于 Undo），空链表返回 nullptr
+    // Return last valid node (for Undo), returns nullptr if empty
     Transaction* last() const;
 
-    // 有效节点数
+    // Number of valid nodes
     int size() const;
 
-    // 是否为空
+    // Check if empty
     bool empty() const;
 
-    // 清空所有有效节点
+    // Clear all valid nodes
     void clear();
 
-    // 打印所有交易（供 View Ledger 使用）
+    // Print all transactions (for View Ledger)
     void printAll() const;
 };
 
