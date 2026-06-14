@@ -41,66 +41,57 @@ static void url_decode(char *dst, const char *src, int dst_size) {
     dst[j] = 0;
 }
 
-static int json_get_string(const char *json, const char *key, char *out, int out_size) {
-    char pattern[128];
-    snprintf(pattern, sizeof(pattern), "\"%s\"", key);
-    const char *p = strstr(json, pattern);
-    if (!p) return 0;
-    p += strlen(pattern);
-    while (*p == ' ' || *p == ':' || *p == '\t') p++;
-    if (*p != '"') return 0;
-    p++;
-    int i = 0;
-    while (*p && *p != '"' && i < out_size - 1) {
-        if (*p == '\\' && *(p+1)) {
-            p++;
-            switch (*p) {
-                case 'n': out[i++] = '\n'; break;
-                case 'r': out[i++] = '\r'; break;
-                case 't': out[i++] = '\t'; break;
-                case '"': out[i++] = '"'; break;
-                case '\\': out[i++] = '\\'; break;
-                default: out[i++] = *p; break;
-            }
-        } else {
-            out[i++] = *p;
+static int get_param(const char *body, const char *key, char *out, int out_size) {
+    int key_len = (int)strlen(key);
+    const char *p = body;
+    while (p && *p) {
+        if ((p == body || *(p - 1) == '&') && strncmp(p, key, key_len) == 0 && p[key_len] == '=') {
+            const char *val_start = p + key_len + 1;
+            const char *val_end = strchr(val_start, '&');
+            int val_len = val_end ? (int)(val_end - val_start) : (int)strlen(val_start);
+            if (val_len >= out_size) val_len = out_size - 1;
+            
+            char *temp = (char *)malloc(val_len + 1);
+            if (!temp) return 0;
+            memcpy(temp, val_start, val_len);
+            temp[val_len] = '\0';
+            
+            url_decode(out, temp, out_size);
+            free(temp);
+            return 1;
         }
-        p++;
+        p = strchr(p, '&');
+        if (p) p++;
     }
-    out[i] = 0;
-    return 1;
+    return 0;
 }
 
-static int json_get_double(const char *json, const char *key, double *out) {
-    char pattern[128];
-    snprintf(pattern, sizeof(pattern), "\"%s\"", key);
-    const char *p = strstr(json, pattern);
-    if (!p) return 0;
-    p += strlen(pattern);
-    while (*p == ' ' || *p == ':' || *p == '\t') p++;
+static int get_double_param(const char *body, const char *key, double *out) {
+    char val[64];
+    if (!get_param(body, key, val, sizeof(val))) return 0;
     char *end;
-    *out = strtod(p, &end);
-    return end != p;
+    *out = strtod(val, &end);
+    return end != val;
 }
 
-static int json_ok(char *buf, const char *message) {
-    return sprintf(buf, "{\"success\":true,\"message\":\"%s\"}", message);
+static int text_ok(char *buf, const char *message) {
+    return sprintf(buf, "success:true\nmessage:%s\n", message);
 }
 
-static int json_err(char *buf, int status, const char *message) {
-    return sprintf(buf, "{\"success\":false,\"error\":\"%s\",\"code\":%d}", message, status);
+static int text_err(char *buf, int status, const char *message) {
+    return sprintf(buf, "success:false\nerror:%s\ncode:%d\n", message, status);
 }
 
-static int json_account(char *buf, const Account *a) {
+static int text_account(char *buf, const Account *a) {
     return sprintf(buf,
-        "{\"account_number\":\"%s\",\"user_name\":\"%s\",\"phone_number\":\"%s\",\"balance\":%.2f}",
+        "account_number:%s\nuser_name:%s\nphone_number:%s\nbalance:%.2f\n",
         a->account_number, a->user_name, a->phone_number, a->balance);
 }
 
-static int json_ledger(char *buf, int buf_size, const Account *a) {
+static int text_ledger(char *buf, int buf_size, const Account *a) {
     int pos = 0;
     pos += snprintf(buf + pos, buf_size - pos,
-        "{\"account_number\":\"%s\",\"user_name\":\"%s\",\"balance\":%.2f,\"transactions\":[",
+        "success:true\naccount_number:%s\nuser_name:%s\nbalance:%.2f\n---\n",
         a->account_number, a->user_name, a->balance);
 
     if (!dll_empty(&a->ledger)) {
@@ -112,26 +103,15 @@ static int json_ledger(char *buf, int buf_size, const Account *a) {
             t = t->prev;
         }
         for (int i = count - 1; i >= 0; i--) {
-            if (i < count - 1) {
-                pos += snprintf(buf + pos, buf_size - pos, ",");
-            }
             const char *type_str = txn_type_str(arr[i]->type);
             pos += snprintf(buf + pos, buf_size - pos,
-                "{\"txn_id\":%d,\"type\":\"%s\",\"amount\":%.2f,",
-                arr[i]->txn_id, type_str, arr[i]->amount);
-            if (arr[i]->from_account[0])
-                pos += snprintf(buf + pos, buf_size - pos, "\"from\":\"%s\",", arr[i]->from_account);
-            else
-                pos += snprintf(buf + pos, buf_size - pos, "\"from\":null,");
-            if (arr[i]->to_account[0])
-                pos += snprintf(buf + pos, buf_size - pos, "\"to\":\"%s\",", arr[i]->to_account);
-            else
-                pos += snprintf(buf + pos, buf_size - pos, "\"to\":null,");
-            pos += snprintf(buf + pos, buf_size - pos, "\"timestamp\":\"%s\"}", arr[i]->timestamp);
+                "%d,%s,%.2f,%s,%s,%s\n",
+                arr[i]->txn_id, type_str, arr[i]->amount,
+                arr[i]->from_account[0] ? arr[i]->from_account : "",
+                arr[i]->to_account[0] ? arr[i]->to_account : "",
+                arr[i]->timestamp);
         }
     }
-
-    pos += snprintf(buf + pos, buf_size - pos, "]}");
     return pos;
 }
 
@@ -153,7 +133,6 @@ static const char *mime_type(const char *path) {
     if (strstr(path, ".html")) return "text/html;charset=utf-8";
     if (strstr(path, ".css")) return "text/css;charset=utf-8";
     if (strstr(path, ".js")) return "application/javascript;charset=utf-8";
-    if (strstr(path, ".json")) return "application/json";
     if (strstr(path, ".png")) return "image/png";
     return "text/plain;charset=utf-8";
 }
@@ -202,7 +181,7 @@ static void send_response(socket_t client, int status, const char *body) {
     char resp[65536];
     int pos = snprintf(resp, sizeof(resp),
         "HTTP/1.1 %d %s\r\n"
-        "Content-Type: application/json\r\n"
+        "Content-Type: text/plain;charset=utf-8\r\n"
         "Access-Control-Allow-Origin: *\r\n"
         "Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS\r\n"
         "Access-Control-Allow-Headers: Content-Type\r\n"
@@ -234,128 +213,128 @@ static void extract_id(const char *path, const char *prefix, char *out, int out_
 
 static void handle_create_account(const char *body, socket_t client) {
     char acc_num[64] = "", user_name[128] = "", phone[32] = "";
-    if (!json_get_string(body, "account_number", acc_num, sizeof(acc_num)) ||
-        !json_get_string(body, "user_name", user_name, sizeof(user_name))) {
+    if (!get_param(body, "account_number", acc_num, sizeof(acc_num)) ||
+        !get_param(body, "user_name", user_name, sizeof(user_name))) {
         char buf[256];
-        json_err(buf, 400, "Missing account_number or user_name");
+        text_err(buf, 400, "Missing account_number or user_name");
         send_response(client, 400, buf);
         return;
     }
-    json_get_string(body, "phone_number", phone, sizeof(phone));
+    get_param(body, "phone_number", phone, sizeof(phone));
     if (strlen(acc_num) == 0 || strlen(user_name) == 0) {
         char buf[256];
-        json_err(buf, 400, "Fields cannot be empty");
+        text_err(buf, 400, "Fields cannot be empty");
         send_response(client, 400, buf);
         return;
     }
     if (!ls_create_account(&g_sys, acc_num, user_name, phone)) {
         char buf[256];
-        json_err(buf, 409, "Account exists");
+        text_err(buf, 409, "Account exists");
         send_response(client, 409, buf);
         return;
     }
     Account *a = ls_search_account(&g_sys, acc_num);
     char abuf[512];
-    json_account(abuf, a);
+    text_account(abuf, a);
     char buf[1024];
-    snprintf(buf, sizeof(buf), "{\"success\":true,\"message\":\"Created\",\"account\":%s}", abuf);
+    snprintf(buf, sizeof(buf), "success:true\nmessage:Created\n%s", abuf);
     send_response(client, 201, buf);
 }
 
 static void handle_deposit(const char *id, const char *body, socket_t client) {
     double amount = 0;
-    if (!json_get_double(body, "amount", &amount)) {
+    if (!get_double_param(body, "amount", &amount)) {
         char buf[256];
-        json_err(buf, 400, "Missing amount");
+        text_err(buf, 400, "Missing amount");
         send_response(client, 400, buf);
         return;
     }
     if (amount <= 0) {
         char buf[256];
-        json_err(buf, 422, "Positive amount required");
+        text_err(buf, 422, "Positive amount required");
         send_response(client, 422, buf);
         return;
     }
     if (!ls_deposit(&g_sys, id, amount)) {
         char buf[256];
-        json_err(buf, 404, "Account not found");
+        text_err(buf, 404, "Account not found");
         send_response(client, 404, buf);
         return;
     }
     Account *a = ls_search_account(&g_sys, id);
     char abuf[512];
-    json_account(abuf, a);
+    text_account(abuf, a);
     char buf[1024];
-    snprintf(buf, sizeof(buf), "{\"success\":true,\"message\":\"Deposit OK\",\"account\":%s}", abuf);
+    snprintf(buf, sizeof(buf), "success:true\nmessage:Deposit OK\n%s", abuf);
     send_response(client, 200, buf);
 }
 
 static void handle_withdraw(const char *id, const char *body, socket_t client) {
     double amount = 0;
-    if (!json_get_double(body, "amount", &amount)) {
+    if (!get_double_param(body, "amount", &amount)) {
         char buf[256];
-        json_err(buf, 400, "Missing amount");
+        text_err(buf, 400, "Missing amount");
         send_response(client, 400, buf);
         return;
     }
     if (amount <= 0) {
         char buf[256];
-        json_err(buf, 422, "Positive amount required");
+        text_err(buf, 422, "Positive amount required");
         send_response(client, 422, buf);
         return;
     }
     if (!ls_withdraw(&g_sys, id, amount)) {
         char buf[256];
-        json_err(buf, 422, "Insufficient balance or account not found");
+        text_err(buf, 422, "Insufficient balance or account not found");
         send_response(client, 422, buf);
         return;
     }
     Account *a = ls_search_account(&g_sys, id);
     char abuf[512];
-    json_account(abuf, a);
+    text_account(abuf, a);
     char buf[1024];
-    snprintf(buf, sizeof(buf), "{\"success\":true,\"message\":\"Withdraw OK\",\"account\":%s}", abuf);
+    snprintf(buf, sizeof(buf), "success:true\nmessage:Withdraw OK\n%s", abuf);
     send_response(client, 200, buf);
 }
 
 static void handle_transfer(const char *body, socket_t client) {
     char from[64] = "", to[64] = "";
     double amount = 0;
-    if (!json_get_string(body, "from", from, sizeof(from)) ||
-        !json_get_string(body, "to", to, sizeof(to)) ||
-        !json_get_double(body, "amount", &amount)) {
+    if (!get_param(body, "from", from, sizeof(from)) ||
+        !get_param(body, "to", to, sizeof(to)) ||
+        !get_double_param(body, "amount", &amount)) {
         char buf[256];
-        json_err(buf, 400, "Missing from/to/amount");
+        text_err(buf, 400, "Missing from/to/amount");
         send_response(client, 400, buf);
         return;
     }
     if (amount <= 0) {
         char buf[256];
-        json_err(buf, 422, "Positive amount required");
+        text_err(buf, 422, "Positive amount required");
         send_response(client, 422, buf);
         return;
     }
     if (strcmp(from, to) == 0) {
         char buf[256];
-        json_err(buf, 422, "Cannot self-transfer");
+        text_err(buf, 422, "Cannot self-transfer");
         send_response(client, 422, buf);
         return;
     }
     if (!ls_transfer(&g_sys, from, to, amount)) {
         char buf[256];
-        json_err(buf, 422, "Transfer failed");
+        text_err(buf, 422, "Transfer failed");
         send_response(client, 422, buf);
         return;
     }
     Account *af = ls_search_account(&g_sys, from);
     Account *at = ls_search_account(&g_sys, to);
-    char fbuf[512], tbuf[512];
-    json_account(fbuf, af);
-    json_account(tbuf, at);
     char buf[1536];
     snprintf(buf, sizeof(buf),
-        "{\"success\":true,\"message\":\"Transfer OK\",\"from_account\":%s,\"to_account\":%s}",
-        fbuf, tbuf);
+        "success:true\nmessage:Transfer OK\n"
+        "from_account_number:%s\nfrom_user_name:%s\nfrom_phone_number:%s\nfrom_balance:%.2f\n"
+        "to_account_number:%s\nto_user_name:%s\nto_phone_number:%s\nto_balance:%.2f\n",
+        af->account_number, af->user_name, af->phone_number, af->balance,
+        at->account_number, at->user_name, at->phone_number, at->balance);
     send_response(client, 200, buf);
 }
 
@@ -363,14 +342,14 @@ static void handle_search(const char *id, socket_t client) {
     Account *a = ls_search_account(&g_sys, id);
     if (!a) {
         char buf[256];
-        json_err(buf, 404, "Not found");
+        text_err(buf, 404, "Not found");
         send_response(client, 404, buf);
         return;
     }
     char abuf[512];
-    json_account(abuf, a);
+    text_account(abuf, a);
     char buf[1024];
-    snprintf(buf, sizeof(buf), "{\"success\":true,\"message\":\"Found\",\"account\":%s}", abuf);
+    snprintf(buf, sizeof(buf), "success:true\nmessage:Found\n%s", abuf);
     send_response(client, 200, buf);
 }
 
@@ -378,36 +357,36 @@ static void handle_ledger(const char *id, socket_t client) {
     Account *a = ls_search_account(&g_sys, id);
     if (!a) {
         char buf[256];
-        json_err(buf, 404, "Not found");
+        text_err(buf, 404, "Not found");
         send_response(client, 404, buf);
         return;
     }
     char buf[65536];
-    json_ledger(buf, sizeof(buf), a);
+    text_ledger(buf, sizeof(buf), a);
     send_response(client, 200, buf);
 }
 
 static void handle_undo(socket_t client) {
     if (!ls_undo(&g_sys)) {
         char buf[256];
-        json_err(buf, 422, "Nothing to undo");
+        text_err(buf, 422, "Nothing to undo");
         send_response(client, 422, buf);
         return;
     }
     char buf[256];
-    json_ok(buf, "Undone");
+    text_ok(buf, "Undone");
     send_response(client, 200, buf);
 }
 
 static void handle_delete(const char *id, socket_t client) {
     if (!ls_delete_account(&g_sys, id)) {
         char buf[256];
-        json_err(buf, 404, "Not found");
+        text_err(buf, 404, "Not found");
         send_response(client, 404, buf);
         return;
     }
     char buf[256];
-    json_ok(buf, "Deleted");
+    text_ok(buf, "Deleted");
     send_response(client, 200, buf);
 }
 
@@ -424,7 +403,7 @@ static void route_request(char *method, char *path, char *body, socket_t client)
             handle_withdraw(id, body, client);
         } else {
             char buf[256];
-            json_err(buf, 404, "Not Found");
+            text_err(buf, 404, "Not Found");
             send_response(client, 404, buf);
         }
     }
@@ -446,7 +425,7 @@ static void route_request(char *method, char *path, char *body, socket_t client)
                 handle_search(id, client);
             } else {
                 char buf[256];
-                json_err(buf, 404, "Not Found");
+                text_err(buf, 404, "Not Found");
                 send_response(client, 404, buf);
             }
         }
@@ -463,13 +442,13 @@ static void route_request(char *method, char *path, char *body, socket_t client)
             send(client, file_resp, len, 0);
         } else {
             char buf[256];
-            json_err(buf, 404, "Not Found");
+            text_err(buf, 404, "Not Found");
             send_response(client, 404, buf);
         }
     }
     else {
         char buf[256];
-        json_err(buf, 404, "Not Found");
+        text_err(buf, 404, "Not Found");
         send_response(client, 404, buf);
     }
 }
