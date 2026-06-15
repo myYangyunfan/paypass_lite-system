@@ -1,4 +1,4 @@
-# C++ 编译产物
+
 *.exe
 *.out
 *.app
@@ -9,7 +9,6 @@ alipay_cli
 alipay_server
 test_core
 
-# 编译中间文件
 *.o
 *.obj
 *.elf
@@ -22,7 +21,6 @@ test_core
 *.lo
 *.la
 
-# 调试/日志文件
 *.log
 *.cache
 *.dSYM/
@@ -30,7 +28,6 @@ test_core
 *.ilk
 *.exp
 
-# 编辑器/IDE 文件
 .vscode/
 .idea/
 *.swp
@@ -39,7 +36,6 @@ test_core
 .DS_Store
 Thumbs.db
 
-# 临时文件
 *.tmp
 *.temp
 *.bak
